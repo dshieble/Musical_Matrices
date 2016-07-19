@@ -6,8 +6,24 @@ from tqdm import tqdm
 # Parameters
 
 # Network Parameters
+def create_cell(input_size, output_size, dropout=False, cell_type="lstm"):
+    if cell_type == "vanilla":
+        cell_class = tf.nn.rnn_cell.BasicRNNCell
+    elif cell_type == "gru":
+        cell_class = tf.nn.rnn_cell.BasicGRUCell
+    elif cell_type == "lstm":
+        cell_class = tf.nn.rnn_cell.BasicLSTMCell
+    else:
+        raise Exception("Invalid cell type: {}".format(cell_type))
 
-def RNN(x, weights, biases, n_input, n_steps, n_hidden):
+    cell = cell_class(output_size, input_size = input_size)
+    if dropout:
+        return tf.nn.rnn_cell.DropoutWrapper(cell, output_keep_prob = 0.5)
+    else:
+        return cell
+
+            
+def RNN(x, weights, biases, n_input, n_steps, hidden_sizes):
 
     # Prepare data shape to match `rnn` function requirements
     # Current data input shape: (batch_size, n_steps, n_input)
@@ -24,7 +40,12 @@ def RNN(x, weights, biases, n_input, n_steps, n_hidden):
     lstm_cell = tf.nn.rnn_cell.BasicLSTMCell(n_hidden, forget_bias=1.0)
 
     # Get lstm cell output
-    outputs, states = tf.nn.rnn(lstm_cell, x, dtype=tf.float32)
+
+    cell = tf.nn.rnn_cell.MultiRNNCell(
+            [create_cell(hidden_sizes[0])] + [create_cell(s) for s in hidden_sizes[1:] + [128]])
+
+    
+    outputs, states = tf.nn.rnn(cell, x, dtype=tf.float32)
 
     # Linear activation, using rnn inner loop last output
     linear_out = tf.matmul(outputs[-1], weights['out']) + biases['out']
@@ -35,16 +56,16 @@ def get_forecast_Xy(L, timestep):
     outy = [L[i]            for i in range(timestep, len(L))]  
     return np.array(outX), np.array(outy)
 
-def compose(x, sess, pred, primer, steps=100):
+def compose(x, sess, pred, primer, steps=100, timestep=200):
 
     predictions = primer
     for i in tqdm(range(steps)):
-        primer = predictions[None, -200:, :]
+        primer = predictions[None, -timestep:, :]
         RP = sess.run(pred, feed_dict={x: primer})
-        P = RP > 0.9
+        P = RP > 0.9999
         predictions = np.vstack((predictions, P))
 
-    return predictions[200:, :]
+    return predictions[timestep:, :]
 
 
 # def get_forecast_batch(L, timestep, batch_size=100):
