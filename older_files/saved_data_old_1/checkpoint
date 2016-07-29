@@ -1,0 +1,6 @@
+model_checkpoint_path: "rbm_rnn_epoch_179"
+all_model_checkpoint_paths: "rbm_rnn_epoch_139"
+all_model_checkpoint_paths: "rbm_rnn_epoch_149"
+all_model_checkpoint_paths: "rbm_rnn_epoch_159"
+all_model_checkpoint_paths: "rbm_rnn_epoch_169"
+all_model_checkpoint_paths: "rbm_rnn_epoch_179"
