@@ -37,9 +37,6 @@ saver = tf.train.Saver()
 xk1, cost = RBM.build_rbm(x, W, bv_t, bh_t, 1)
 rbm_train_var = tf.train.GradientDescentOptimizer(learning_rate=0.01).minimize(cost)
 
-#Initialize the RNN Variables
-
-
 with tf.Session() as sess:
     init = tf.initialize_all_variables()
     sess.run(init)
@@ -51,4 +48,5 @@ with tf.Session() as sess:
             sess.run(rbm_train_var, feed_dict={x: tr_x})
     save_path = saver.save(sess, "initializations/rbm.ckpt")
 
+#Initialize the RNN Variables
 

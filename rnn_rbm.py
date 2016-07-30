@@ -1,8 +1,9 @@
+import sys
 import tensorflow as tf
 import numpy as np
 import pandas as pd
-from midi.utils import midiread, midiwrite
-import sys
+sys.path.append("midi")
+from utils import midiread, midiwrite
 sys.path.append("/Users/danshiebler/Documents")
 import helper_functions as hf
 import os
@@ -15,6 +16,7 @@ from tensorflow.examples.tutorials.mnist import input_data
 import RBM
 
 def get_songs(path, num_songs):
+    
     files = glob.glob(path)[:num_songs]
     f = files[0]
     r=(21, 109)

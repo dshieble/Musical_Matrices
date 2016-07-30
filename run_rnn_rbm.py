@@ -35,8 +35,8 @@ hf.variable_summaries(Wvu, "Wvu")
 hf.variable_summaries(Wuu, "Wuu")
 hf.variable_summaries(bu, "bu")
 
-# optimizer = tf.train.AdamOptimizer(learning_rate=a)
-optimizer = tf.train.GradientDescentOptimizer(learning_rate=0.001)
+optimizer = tf.train.AdamOptimizer(learning_rate=a)
+# optimizer = tf.train.GradientDescentOptimizer(learning_rate=0.001)
 gvs = optimizer.compute_gradients(cost, [W, Wuh, Wuv, Wvu, Wuu, bh, bv, bu])
 gvs = [(tf.clip_by_value(grad, -10., 10.), var) for grad, var in gvs]
 train_var = optimizer.apply_gradients(gvs)
@@ -48,7 +48,7 @@ batch_size = 100
 NUM_CORES = 4
 
 # songs, dt, r = get_songs('data/music_all/train/*.mid')
-songs, dt, r = rnn_rbm.get_songs('data/Nottingham/train_C/*.mid', 1000)
+songs, dt, r = rnn_rbm.get_songs('data/Nottingham/train_C/*.mid', 1)
 
 
 
@@ -62,7 +62,7 @@ with tf.Session(config=tf.ConfigProto(inter_op_parallelism_threads=NUM_CORES,
     writer = tf.train.SummaryWriter('/tmp/tf_rbm_logs/train', sess.graph)
 
     # loop with batch
-    for epoch in tqdm(range(num_epochs)):
+    for epoch in range(num_epochs):
         for song in songs:
             for i in range(1, len(song), batch_size):
                 tr_x = song[i:i + batch_size]
@@ -70,6 +70,7 @@ with tf.Session(config=tf.ConfigProto(inter_op_parallelism_threads=NUM_CORES,
 #                 print "iteration: {}, shape: {}".format(i, tr_x.shape)
                 summary, _ = sess.run([merged, train_var], feed_dict={x: tr_x, a: alpha})
                 writer.add_summary(summary, i)
+        print "epoch: {} cost: {}".format(epoch, cost.eval(session=sess, feed_dict={x: tr_x, a: alpha}))
         if (epoch + 1) % 10 == 0:
             save_path = saver.save(sess, "saved_data/rbm_rnn_epoch_{}".format(epoch))
 
