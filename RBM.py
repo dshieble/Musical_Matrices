@@ -14,19 +14,17 @@ def gibbs_sample(x, W, bv_t, bh_t, k):
     size_bt = tf.shape(x)[0]
     # CD-k
     # we use tf.while_loop to achieve the multiple (k - 1) gibbs sampling  
-    # set up tf.while_loop()
-    def rbmGibbs(xk, count, k, W=W):
+    def rbmGibbs(count, k, xk, W=W):
 #         xk = tf.Print(xk, [xk], "xk start ")
-        hk = sampleInt(tf.sigmoid(tf.matmul(xk, W) + tf.tile(bh_t, [size_bt, 1])))
-        xk = sampleInt(tf.sigmoid(tf.matmul(hk, tf.transpose(W)) + tf.tile(bv_t, [size_bt, 1])))
+        hk = sampleInt(tf.sigmoid(tf.matmul(xk, W) + bh_t))#tf.tile(bh_t, [size_bt, 1])))
+        xk = sampleInt(tf.sigmoid(tf.matmul(hk, tf.transpose(W)) + bv_t))#tf.tile(bv_t, [size_bt, 1])))
 #         xk = tf.Print(xk, [xk], "xk end ")
-        return xk, count+1, k
+        return count+1, k, xk
 
-    def lessThanK(xk, count, k):
-        return count <= k
-
-    ct = tf.constant(1) #counter
-    [xk1, _, _] = control_flow_ops.While(lessThanK, rbmGibbs, [x, ct, tf.constant(k)], 1, False)
+    ct = tf.constant(0) #counter
+    [_, _, xk1] = control_flow_ops.While(lambda count, num_iter, *args: count < num_iter,
+                                         rbmGibbs, [ct, tf.constant(k), x], 1, False)
+    xk1 = tf.stop_gradient(xk1)
     return xk1
 
 def build_rbm(x, W, bv_t, bh_t, k):
@@ -38,13 +36,12 @@ def build_rbm(x, W, bv_t, bh_t, k):
     
     # define graph/algorithm
     xk1 = gibbs_sample(x, W, bv_t, bh_t, k)
-    xk1 = tf.stop_gradient(xk1)
 
     def free_energy(xx):
         #return -(v * bv_t).sum() - T.log(1 + T.exp(T.dot(v, W) + bh_t)).sum()
-        lin_out = tf.matmul(xx, W) + tf.tile(bh_t, [size_bt, 1])
+        lin_out = tf.matmul(xx, W) + bh_t
         A = -tf.reduce_sum(tf.log(1 + tf.exp(lin_out)), 1)
-        B = -tf.matmul(xx, tf.transpose(tf.cast(tf.tile(bv_t, [size_bt, 1]), tf.float32)))
+        B = -tf.matmul(xx, tf.transpose(bv_t))
 #         out =  tf.matmul(xx, W) + tf.tile(bh_t, [size_bt, 1])
 #         out = tf.matmul(xx, tf.transpose(tf.cast(tf.tile(bv_t, [size_bt, 1]), tf.float32)))
 #         out    = tf.Print(out, [out], "out")
