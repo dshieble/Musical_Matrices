@@ -19,7 +19,7 @@ import time
 #clip gradients
 #don't compute gradients on sample
 
-def main(num_epochs, epochs_to_save):
+def main(num_epochs, epochs_to_save, num_songs, path):
     train, generate = rnn_rbm.build_rnnrbm()
     x, sample, cost, params, size_bt = train()
     W, bh, bv, x, a, Wuh, Wuv, Wvu, Wuu, bu, u0 = params
@@ -38,22 +38,25 @@ def main(num_epochs, epochs_to_save):
     # optimizer = tf.train.AdamOptimizer(learning_rate=a)
     optimizer = tf.train.GradientDescentOptimizer(learning_rate=a)
     gvs = optimizer.compute_gradients(cost, [W, Wuh, Wuv, Wvu, Wuu, bh, bv, bu, u0])
-    # gvs = [(tf.clip_by_value(grad, -10., 10.), var) for grad, var in gvs]
+    gvs = [(tf.clip_by_value(grad, -10., 10.), var) for grad, var in gvs]
     train_var = optimizer.apply_gradients(gvs)
     saver = tf.train.Saver()
 
 
     batch_size = 100
     NUM_CORES = 4
+    saved_weights_path = "/Users/danshiebler/Documents/Musical_Matrices/initializations/rbm.ckpt"
+#     saved_weights_path = "/Users/danshiebler/Documents/Musical_Matrices/initializations/rbm_trained.ckpt"
 
-    # songs, dt, r = get_songs('data/music_all/train/*.mid')
-    songs, dt, r = rnn_rbm.get_songs('data/Nottingham/train_C/*.mid', 10000)
+#   data/Nottingham/all_C/
+#   data/assorted_classical/classical_piano_C
+    songs, dt, r = rnn_rbm.get_songs('{}/*.mid'.format(path), num_songs)
 
     with tf.Session(config=tf.ConfigProto(inter_op_parallelism_threads=NUM_CORES,
                        intra_op_parallelism_threads=NUM_CORES)) as sess:
         init = tf.initialize_all_variables()
         sess.run(init)
-        saver.restore(sess, "/Users/danshiebler/Documents/Musical_Matrices/initializations/rbm.ckpt")
+        saver.restore(sess, saved_weights_path)
 
         merged = tf.merge_all_summaries()
         os.system("rm -rf /tmp/tf_rbm_logs/train")
@@ -62,16 +65,20 @@ def main(num_epochs, epochs_to_save):
         # loop with batch
         print "starting"
         for epoch in range(num_epochs):
+            costs = []
             start = time.time()
-            for song in songs:
+            for s_ind, song in enumerate(songs):
                 for i in range(1, len(song), batch_size):
+#                     print s_ind, i
                     tr_x = song[i:i + batch_size]
-                    alpha = min(0.05, 1/float(i))
+                    alpha = min(0.002, 0.05/float(i))
     #                 print "iteration: {}, shape: {}".format(i, tr_x.shape)
-                    summary, _ = sess.run([merged, train_var], feed_dict={x: tr_x, a: alpha})
-    #                 writer.add_summary(summary, i)
-            print "epoch: {} cost: {} time: {}".format(epoch, cost.eval(session=sess, feed_dict={x: tr_x, a: alpha}), 
-                                                       time.time()-start)
+                    summary, _, C = sess.run([merged, train_var, cost], feed_dict={x: tr_x, a: alpha})
+                    writer.add_summary(summary, i)
+                    costs.append(C)
+                if (s_ind % 100) == 0:
+                    print "song: {} cost: {} time: {}".format(s_ind, np.mean(costs), time.time()-start)
+            print "epoch: {} cost: {} time: {}".format(epoch, np.mean(costs), time.time()-start)
             print
             if (epoch + 1) % epochs_to_save == 0:
                 save_path = saver.save(sess, "saved_data/rbm_rnn_epoch_{}".format(epoch))
@@ -81,4 +88,4 @@ def main(num_epochs, epochs_to_save):
                               generated_music, r, dt)
 
 if __name__ == "__main__":
-    main(int(sys.argv[1]), int(sys.argv[2]))
+    main(int(sys.argv[1]), int(sys.argv[2]), int(sys.argv[3]), sys.argv[4])

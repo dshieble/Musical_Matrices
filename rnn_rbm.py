@@ -21,7 +21,12 @@ def get_songs(path, num_songs):
     f = files[0]
     r=(21, 109)
     dt=0.3
-    songs = [midiread(f, r, dt).piano_roll for f in tqdm(files)]
+    songs = []
+    for f in tqdm(files):
+        try:
+            songs.append(midiread(f, r, dt).piano_roll)
+        except Exception as e:
+            print f, e            
     return songs, dt, r
 
 
@@ -57,44 +62,43 @@ def build_rnnrbm( n_visible= 88, n_hidden= 150, n_hidden_recurrent= 100):
     # but with a separate Gibbs chain at each time step to sample (generate)
     # from the RNN-RBM. The resulting sample v_t is returned in order to be
     # passed down to the sequence history.
-
-    def train_recurrence(count, k, u_tm1, x=x, BV_t=BV_t, BH_t=BH_t, Wvu=Wvu):
+    def rnn_recurrence(u_tm1, sl):
+        sl  =  tf.reshape(sl, [1, n_visible])
+        u_t = (tf.tanh(bu + tf.matmul(sl, Wvu) + tf.matmul(u_tm1, Wuu)))
+        return u_t
+    
+    def visible_bias_recurrence(bv_t, u_tm1):
         bv_t = tf.add(bv, tf.matmul(u_tm1, Wuv))
+        return bv_t    
+
+    def hidden_bias_recurrence(bh_t, u_tm1):
         bh_t = tf.add(bh, tf.matmul(u_tm1, Wuh))
-
-
-        #TODO: FIGURE OUT HOW BUILDING UP A VECTOR INSIDE OF A WHILE LOOP IS TYPICALLY DONE
-        
-        BV_t = tf.get_variable("BV_t",[size_bt, n_visible],dtype=tf.float32)
-        BH_t = tf.get_variable("BH_t",[size_bt, n_hidden] ,dtype=tf.float32)
-
-        Wvu = tf.Print(Wvu, [BV_t], "BV_t before", summarize=10)
-        BV_t = tf.scatter_update(BV_t, [0], bv_t)
-        BH_t = tf.scatter_update(BH_t, [0], bh_t)
-        Wvu = tf.Print(Wvu, [BV_t], "BV_t after", summarize=10)
-
-        sl   = tf.slice(x, [count, 0], [1, n_visible])
-        u_t  = (tf.tanh(bu + tf.matmul(sl, Wvu) + tf.matmul(u_tm1, Wuu)))
-        with tf.control_dependencies([BV_t, BH_t]):
-            return count+1, k, u_t
+        return bh_t    
 
     def train(x=x, size_bt=size_bt, BV_t=BV_t, BH_t=BH_t):
-        ct   = tf.constant(1, tf.int32) #counter
-        [_, _, u_t] = control_flow_ops.While(lambda count, num_iter, *args: count < num_iter,
-                                                               train_recurrence, 
-                                                               [ct, size_bt, u0])
+        bv_init = tf.zeros([1, n_visible], tf.float32)
+        bh_init = tf.zeros([1, n_hidden], tf.float32)
+        u_t  = tf.scan(rnn_recurrence, x, initializer=u0)
+        BV_t = tf.reshape(tf.scan(visible_bias_recurrence, u_t, bv_init), [size_bt, n_visible])
+        BH_t = tf.reshape(tf.scan(hidden_bias_recurrence, u_t, bh_init), [size_bt, n_hidden])
+        sample, cost = RBM.build_rbm(x, W, BV_t, BH_t, k=15)
+        return x, sample, cost, params, size_bt            
+        
+        
+#         [_, _, u_t] = control_flow_ops.While(lambda count, num_iter, *args: count < num_iter,
+#                                                                train_recurrence, 
+#                                                                [ct, size_bt, u0])
 
         #Build this rbm based on the bias vectors that we already found 
 #         BV_t = tf.Print(BV_t, [BV_t], "BV_t", summarize=10)
 #         BH_t = tf.Print(BH_t, [BH_t], "BH_t", summarize=10)
+#         BV_t = tf.get_variable("BV_t",[size_bt, n_visible],dtype=tf.float32)
+#         BH_t = tf.get_variable("BH_t",[size_bt, n_hidden] ,dtype=tf.float32)
 
-        BV_t = tf.get_variable("BV_t",[size_bt, n_visible],dtype=tf.float32)
-        BH_t = tf.get_variable("BH_t",[size_bt, n_hidden] ,dtype=tf.float32)
+#         with tf.control_dependencies([u_t]):
 
-        with tf.control_dependencies([u_t]):
-
-            sample, cost = RBM.build_rbm(x, W, BV_t, BH_t, k=15)
-            return x, sample, cost, params, size_bt
+#             sample, cost = RBM.build_rbm(x, W, BV_t, BH_t, k=15)
+#             return x, sample, cost, params, size_bt
 
     def generate_recurrence(count, k, u_tm1, music):
         bv_t = tf.add(bv, tf.matmul(u_tm1, Wuv))

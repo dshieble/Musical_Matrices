@@ -17,7 +17,7 @@ import RBM
 import rnn_rbm
 
 #Load the Songs
-songs, dt, r = rnn_rbm.get_songs('data/Nottingham/train_C/*.mid', 5)
+songs, dt, r = rnn_rbm.get_songs('data/Nottingham/all_C/*.mid', 1000)
 
 n_visible= 88
 n_hidden= 150
