@@ -1,2 +1,4 @@
-model_checkpoint_path: "rbm_rnn_epoch_9"
+model_checkpoint_path: "rbm_rnn_epoch_14"
+all_model_checkpoint_paths: "rbm_rnn_epoch_4"
 all_model_checkpoint_paths: "rbm_rnn_epoch_9"
+all_model_checkpoint_paths: "rbm_rnn_epoch_14"

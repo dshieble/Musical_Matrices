@@ -1,7 +1,6 @@
 import tensorflow as tf
 import numpy as np
 import pandas as pd
-from midi.utils import midiread, midiwrite
 import sys
 sys.path.append("/Users/danshiebler/Documents")
 import helper_functions as hf
@@ -43,14 +42,15 @@ def main(num_epochs, epochs_to_save, num_songs, path):
     saver = tf.train.Saver()
 
 
-    batch_size = 100
+    batch_size = 1000
     NUM_CORES = 4
     saved_weights_path = "/Users/danshiebler/Documents/Musical_Matrices/initializations/rbm.ckpt"
 #     saved_weights_path = "/Users/danshiebler/Documents/Musical_Matrices/initializations/rbm_trained.ckpt"
-
+#     saved_weights_path = "/Users/danshiebler/Documents/Musical_Matrices/initializations/rbm_trained_biaxial_100.ckpt"
 #   data/Nottingham/all_C/
 #   data/assorted_classical/classical_piano_C
-    songs, dt, r = rnn_rbm.get_songs('{}/*.mid'.format(path), num_songs)
+#     songs = rnn_rbm.get_songs(path, num_songs)
+    songs = rnn_rbm.get_songs_msgpack('data/song_msgpacks/biaxial_all_C', 1000)
 
     with tf.Session(config=tf.ConfigProto(inter_op_parallelism_threads=NUM_CORES,
                        intra_op_parallelism_threads=NUM_CORES)) as sess:
@@ -71,7 +71,7 @@ def main(num_epochs, epochs_to_save, num_songs, path):
                 for i in range(1, len(song), batch_size):
 #                     print s_ind, i
                     tr_x = song[i:i + batch_size]
-                    alpha = min(0.002, 0.05/float(i))
+                    alpha = min(0.005, 0.05/float(i))
     #                 print "iteration: {}, shape: {}".format(i, tr_x.shape)
                     summary, _, C = sess.run([merged, train_var, cost], feed_dict={x: tr_x, a: alpha})
                     writer.add_summary(summary, i)
@@ -82,10 +82,11 @@ def main(num_epochs, epochs_to_save, num_songs, path):
             print
             if (epoch + 1) % epochs_to_save == 0:
                 save_path = saver.save(sess, "saved_data/rbm_rnn_epoch_{}".format(epoch))
-                for i in range(10):
-                    generated_music = sess.run(generate())
-                    midiwrite("music_outputs/tf_training_iter/epoch_{}_composition_tf_{}.midi".format(epoch, i), 
-                              generated_music, r, dt)
+#                 for i in range(10):
+#                     generated_music = sess.run(generate(100), feed_dict={x: tr_x})
+#                     save_path = "music_outputs/tf_training_iter/epoch_{}_composition_tf_{}.midi".format(epoch, i)
+#                     rnn_rbm.write_song(save_path, generated_music)
+
 
 if __name__ == "__main__":
     main(int(sys.argv[1]), int(sys.argv[2]), int(sys.argv[3]), sys.argv[4])

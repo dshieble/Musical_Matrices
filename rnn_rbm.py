@@ -14,24 +14,38 @@ import glob
 from copy import deepcopy
 from tensorflow.examples.tutorials.mnist import input_data
 import RBM
+import midi_to_statematrix
+import msgpack
+
+n_visible= 156
+n_hidden= 150
+n_hidden_recurrent= 100
+
+def write_song(path, song):
+    midi_to_statematrix.noteStateMatrixToMidi(song, name=path)
+
+def get_song(path):
+    statematrix  = np.array(midi_to_statematrix.midiToNoteStateMatrix(path))
+    return statematrix
 
 def get_songs(path, num_songs):
-    
-    files = glob.glob(path)[:num_songs]
-    f = files[0]
-    r=(21, 109)
-    dt=0.3
+        
+    files = glob.glob('{}/*.mid'.format(path))[:num_songs]
     songs = []
     for f in tqdm(files):
         try:
-            songs.append(midiread(f, r, dt).piano_roll)
+            song = get_song(f)
+            if np.array(song).shape[0] > 50:
+                songs.append(song)
         except Exception as e:
             print f, e            
-    return songs, dt, r
+    return songs
+
+def get_songs_msgpack(path, num_songs):
+    return msgpack.load(open(path, "rb"))[:num_songs]
 
 
-
-def build_rnnrbm( n_visible= 88, n_hidden= 150, n_hidden_recurrent= 100):
+def build_rnnrbm():
 
     # variables and place holder
     x  = tf.placeholder(tf.float32, [None, n_visible])
@@ -66,14 +80,14 @@ def build_rnnrbm( n_visible= 88, n_hidden= 150, n_hidden_recurrent= 100):
         sl  =  tf.reshape(sl, [1, n_visible])
         u_t = (tf.tanh(bu + tf.matmul(sl, Wvu) + tf.matmul(u_tm1, Wuu)))
         return u_t
-    
+
     def visible_bias_recurrence(bv_t, u_tm1):
         bv_t = tf.add(bv, tf.matmul(u_tm1, Wuv))
-        return bv_t    
+        return bv_t
 
     def hidden_bias_recurrence(bh_t, u_tm1):
         bh_t = tf.add(bh, tf.matmul(u_tm1, Wuh))
-        return bh_t    
+        return bh_t
 
     def train(x=x, size_bt=size_bt, BV_t=BV_t, BH_t=BH_t):
         bv_init = tf.zeros([1, n_visible], tf.float32)
@@ -83,39 +97,30 @@ def build_rnnrbm( n_visible= 88, n_hidden= 150, n_hidden_recurrent= 100):
         BH_t = tf.reshape(tf.scan(hidden_bias_recurrence, u_t, bh_init), [size_bt, n_hidden])
         sample, cost = RBM.build_rbm(x, W, BV_t, BH_t, k=15)
         return x, sample, cost, params, size_bt            
-        
-        
-#         [_, _, u_t] = control_flow_ops.While(lambda count, num_iter, *args: count < num_iter,
-#                                                                train_recurrence, 
-#                                                                [ct, size_bt, u0])
 
-        #Build this rbm based on the bias vectors that we already found 
-#         BV_t = tf.Print(BV_t, [BV_t], "BV_t", summarize=10)
-#         BH_t = tf.Print(BH_t, [BH_t], "BH_t", summarize=10)
-#         BV_t = tf.get_variable("BV_t",[size_bt, n_visible],dtype=tf.float32)
-#         BH_t = tf.get_variable("BH_t",[size_bt, n_hidden] ,dtype=tf.float32)
-
-#         with tf.control_dependencies([u_t]):
-
-#             sample, cost = RBM.build_rbm(x, W, BV_t, BH_t, k=15)
-#             return x, sample, cost, params, size_bt
-
-    def generate_recurrence(count, k, u_tm1, music):
+    def generate_recurrence(count, k, u_tm1, primer, x, music):
         bv_t = tf.add(bv, tf.matmul(u_tm1, Wuv))
         bh_t = tf.add(bh, tf.matmul(u_tm1, Wuh))   
 
-        x_out  = RBM.gibbs_sample(tf.zeros([1, n_visible],  tf.float32), W, bv_t, bh_t, k=25)
+        primer = tf.zeros([1, n_visible],  tf.float32)
+#         primer   = tf.slice(x, [count, 0], [1, n_visible])
+        x_out  = RBM.gibbs_sample(primer, W, bv_t, bh_t, k=25)
         u_t  = (tf.tanh(bu + tf.matmul(x_out, Wvu) + tf.matmul(u_tm1, Wuu)))
         music = tf.concat(0, [music, x_out])
+        return count+1, k, u_t, x_out, x, music
 
-        return count+1, k, u_t, music
-
-    def generate(u0=u0, size_bt=size_bt):
+    def generate(num, x=x, size_bt=size_bt, u0=u0, prime_with_x=False, n_visible=n_visible, prime_length=100):
         m = tf.zeros([1, n_visible],  tf.float32)
         ct   = tf.constant(1, tf.int32) #counter
-        [_, _, _, music] = control_flow_ops.While(lambda count, num_iter, *args: count < num_iter,
+        if prime_with_x:
+            Uarr = tf.scan(rnn_recurrence, x, initializer=u0)
+            U = Uarr[prime_length, :, :]
+        else:
+            U = u0
+#         x = tf.slice(x, [100, 0], [num, n_visible])
+        [_, _, _, _, _, music] = control_flow_ops.While(lambda count, num_iter, *args: count < num_iter,
                                                          generate_recurrence,
-                                                         [ct, tf.constant(200), u0, m])
+                                                         [ct, tf.constant(num), U, tf.zeros([1, n_visible],  tf.float32), x, m])
         return music
     return train, generate
 

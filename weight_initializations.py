@@ -17,30 +17,28 @@ import RBM
 import rnn_rbm
 
 #Load the Songs
-songs, dt, r = rnn_rbm.get_songs('data/Nottingham/all_C/*.mid', 1000)
+# songs = rnn_rbm.get_songs('data/Nottingham/all_C/*.mid', 1000)
+songs = rnn_rbm.get_songs_msgpack('data/song_msgpacks/biaxial_all_C', 1000)
 
-n_visible= 88
-n_hidden= 150
-n_hidden_recurrent= 100
 batch_size = 100
 
 
-x_rbm  = tf.placeholder(tf.float32, [None, n_visible], name="x_rbm")
-x_rnn  = tf.placeholder(tf.float32, [None, n_visible], name="x")
+x_rbm  = tf.placeholder(tf.float32, [None, rnn_rbm.n_visible], name="x_rbm")
+x_rnn  = tf.placeholder(tf.float32, [None, rnn_rbm.n_visible], name="x")
 size_bt = tf.shape(x_rnn)[0]
 
 #RBM  and RBM Variables
-W   = tf.Variable(tf.random_normal([n_visible, n_hidden], 0.01), name="W")
-Wuh = tf.Variable(tf.random_normal([n_hidden_recurrent, n_hidden], 0.0001), name="Wuh")
-Wuv = tf.Variable(tf.random_normal([n_hidden_recurrent, n_visible], 0.0001), name="Wuv")
-Wvu = tf.Variable(tf.random_normal([n_visible, n_hidden_recurrent], 0.0001), name="Wvu")
-Wuu = tf.Variable(tf.random_normal([n_hidden_recurrent, n_hidden_recurrent], 0.0001), name="Wuu")
-bh  = tf.Variable(tf.zeros([1, n_hidden], tf.float32), name="bh")
-bv  = tf.Variable(tf.zeros([1, n_visible], tf.float32), name="bv")
-bu  = tf.Variable(tf.zeros([1, n_hidden_recurrent],  tf.float32), name="bu")
-u0  = tf.Variable(tf.zeros([1, n_hidden_recurrent], tf.float32), name="u0")
-BH_t = tf.Variable(tf.ones([1, n_hidden],  tf.float32), name="BH_t")
-BV_t = tf.Variable(tf.ones([1, n_visible],  tf.float32), name="BV_t")
+W   = tf.Variable(tf.random_normal([rnn_rbm.n_visible, rnn_rbm.n_hidden], 0.01), name="W")
+Wuh = tf.Variable(tf.random_normal([rnn_rbm.n_hidden_recurrent, rnn_rbm.n_hidden], 0.0001), name="Wuh")
+Wuv = tf.Variable(tf.random_normal([rnn_rbm.n_hidden_recurrent, rnn_rbm.n_visible], 0.0001), name="Wuv")
+Wvu = tf.Variable(tf.random_normal([rnn_rbm.n_visible, rnn_rbm.n_hidden_recurrent], 0.0001), name="Wvu")
+Wuu = tf.Variable(tf.random_normal([rnn_rbm.n_hidden_recurrent, rnn_rbm.n_hidden_recurrent], 0.0001), name="Wuu")
+bh  = tf.Variable(tf.zeros([1, rnn_rbm.n_hidden], tf.float32), name="bh")
+bv  = tf.Variable(tf.zeros([1, rnn_rbm.n_visible], tf.float32), name="bv")
+bu  = tf.Variable(tf.zeros([1, rnn_rbm.n_hidden_recurrent],  tf.float32), name="bu")
+u0  = tf.Variable(tf.zeros([1, rnn_rbm.n_hidden_recurrent], tf.float32), name="u0")
+BH_t = tf.Variable(tf.ones([1, rnn_rbm.n_hidden],  tf.float32), name="BH_t")
+BV_t = tf.Variable(tf.ones([1, rnn_rbm.n_visible],  tf.float32), name="BV_t")
 
 
 
