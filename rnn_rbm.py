@@ -2,8 +2,6 @@ import sys
 import tensorflow as tf
 import numpy as np
 import pandas as pd
-sys.path.append("midi")
-from utils import midiread, midiwrite
 sys.path.append("/Users/danshiebler/Documents")
 import helper_functions as hf
 import os
@@ -95,16 +93,16 @@ def build_rnnrbm():
         u_t  = tf.scan(rnn_recurrence, x, initializer=u0)
         BV_t = tf.reshape(tf.scan(visible_bias_recurrence, u_t, bv_init), [size_bt, n_visible])
         BH_t = tf.reshape(tf.scan(hidden_bias_recurrence, u_t, bh_init), [size_bt, n_hidden])
-        sample, cost = RBM.build_rbm(x, W, BV_t, BH_t, k=15)
+        sample, cost = RBM.get_free_energy_cost(x, W, BV_t, BH_t, k=15)
         return x, sample, cost, params, size_bt            
 
     def generate_recurrence(count, k, u_tm1, primer, x, music):
         bv_t = tf.add(bv, tf.matmul(u_tm1, Wuv))
         bh_t = tf.add(bh, tf.matmul(u_tm1, Wuh))   
 
-        primer = tf.zeros([1, n_visible],  tf.float32)
+#         primer = tf.zeros([1, n_visible],  tf.float32)
 #         primer   = tf.slice(x, [count, 0], [1, n_visible])
-        x_out  = RBM.gibbs_sample(primer, W, bv_t, bh_t, k=25)
+        x_out, h_out  = RBM.gibbs_sample(primer, W, bv_t, bh_t, k=25, c_1=0.5, c_2=0.5)
         u_t  = (tf.tanh(bu + tf.matmul(x_out, Wvu) + tf.matmul(u_tm1, Wuu)))
         music = tf.concat(0, [music, x_out])
         return count+1, k, u_t, x_out, x, music
@@ -120,7 +118,7 @@ def build_rnnrbm():
 #         x = tf.slice(x, [100, 0], [num, n_visible])
         [_, _, _, _, _, music] = control_flow_ops.While(lambda count, num_iter, *args: count < num_iter,
                                                          generate_recurrence,
-                                                         [ct, tf.constant(num), U, tf.zeros([1, n_visible],  tf.float32), x, m])
+                                                         [ct, tf.constant(num), U, tf.zeros([1, n_visible], tf.float32), x, m])
         return music
     return train, generate
 

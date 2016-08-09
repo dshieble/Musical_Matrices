@@ -5,9 +5,8 @@ lowerBound = 24
 upperBound = 102
 span = upperBound-lowerBound
 
-    
-def midiToNoteStateMatrix(midifile, squash=True):
 
+def midiToNoteStateMatrix(midifile, squash=True, span=span):
     pattern = midi.read_midifile(midifile)
 
     timeleft = [track[0].tick for track in pattern]
@@ -68,7 +67,7 @@ def midiToNoteStateMatrix(midifile, squash=True):
     statematrix = np.asarray(statematrix).tolist()
     return statematrix
 
-def noteStateMatrixToMidi(statematrix, name="example"):
+def noteStateMatrixToMidi(statematrix, name="example", span=span):
     statematrix = np.array(statematrix)
     if not len(statematrix.shape) == 3:
         statematrix = np.dstack((statematrix[:, :span], statematrix[:, span:]))

@@ -22,14 +22,14 @@ def main(saved_weights_path, num, primer_path):
 
     saver = tf.train.Saver()
 
-    song_primer, dt, r = rnn_rbm.get_song(primer_path)
+    song_primer = rnn_rbm.get_song(primer_path)
 
     with tf.Session() as sess:
         init = tf.initialize_all_variables()
         sess.run(init)
         saver.restore(sess, saved_weights_path)
         for i in tqdm(range(num)):
-            generated_music = sess.run(generate(100, prime_with_x=True), feed_dict={x: song_primer})
+            generated_music = sess.run(generate(300, prime_with_x=True), feed_dict={x: song_primer})
             save_path = "music_outputs/generated_music/{}_{}".format(i, primer_path.split("/")[-1])
             rnn_rbm.write_song(save_path, generated_music)
             

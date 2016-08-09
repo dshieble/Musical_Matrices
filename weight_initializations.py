@@ -2,7 +2,6 @@
 import tensorflow as tf
 import numpy as np
 import pandas as pd
-from midi.utils import midiread, midiwrite
 import sys
 sys.path.append("/Users/danshiebler/Documents")
 import helper_functions as hf
@@ -47,8 +46,9 @@ size_bt = tf.shape(x_rbm)[0]
 
 #Build the RBM optimization
 saver = tf.train.Saver()
-xk1, cost = RBM.build_rbm(x_rbm, W, bv, bh, 1)
-rbm_train_var = tf.train.GradientDescentOptimizer(learning_rate=0.01).minimize(cost)
+# xk1, cost = RBM.get_free_energy_cost(x_rbm, W, bv, bh, 1)
+# updt = tf.train.GradientDescentOptimizer(learning_rate=0.01).minimize(cost)
+updt = RBM.get_cd_update(x_rbm, W, bv, bh, 1, 0.01)
 
 #Run the session
 with tf.Session() as sess:
@@ -56,10 +56,11 @@ with tf.Session() as sess:
     sess.run(init)
 
     # loop with batch
-    for song in tqdm(songs):
-        for i in range(1, len(song), batch_size):
-            tr_x = song[i:i + batch_size]
-            sess.run(rbm_train_var, feed_dict={x_rbm: tr_x})
+    for epoch in tqdm(range(10)):
+        for song in songs:
+            for i in range(1, len(song), batch_size):
+                tr_x = song[i:i + batch_size]
+                sess.run(updt, feed_dict={x_rbm: tr_x})
     save_path = saver.save(sess, "initializations/rbm.ckpt")
 
  
