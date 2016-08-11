@@ -16,7 +16,7 @@ import midi_to_statematrix
 import msgpack
 
 n_visible= 156
-n_hidden= 150
+n_hidden= 250
 n_hidden_recurrent= 100
 
 def write_song(path, song):
@@ -93,8 +93,8 @@ def build_rnnrbm():
         u_t  = tf.scan(rnn_recurrence, x, initializer=u0)
         BV_t = tf.reshape(tf.scan(visible_bias_recurrence, u_t, bv_init), [size_bt, n_visible])
         BH_t = tf.reshape(tf.scan(hidden_bias_recurrence, u_t, bh_init), [size_bt, n_hidden])
-        sample, cost = RBM.get_free_energy_cost(x, W, BV_t, BH_t, k=15)
-        return x, sample, cost, params, size_bt            
+        sample, cost, monitor = RBM.get_free_energy_cost(x, W, BV_t, BH_t, k=15)
+        return x, sample, cost, monitor, params, size_bt            
 
     def generate_recurrence(count, k, u_tm1, primer, x, music):
         bv_t = tf.add(bv, tf.matmul(u_tm1, Wuv))
@@ -102,7 +102,8 @@ def build_rnnrbm():
 
 #         primer = tf.zeros([1, n_visible],  tf.float32)
 #         primer   = tf.slice(x, [count, 0], [1, n_visible])
-        x_out, h_out  = RBM.gibbs_sample(primer, W, bv_t, bh_t, k=25, c_1=0.5, c_2=0.5)
+        x_out, _ = RBM.gibbs_sample(primer, W, bv_t, bh_t, k=25, c_1=0.5, c_2=0.5)
+    
         u_t  = (tf.tanh(bu + tf.matmul(x_out, Wvu) + tf.matmul(u_tm1, Wuu)))
         music = tf.concat(0, [music, x_out])
         return count+1, k, u_t, x_out, x, music

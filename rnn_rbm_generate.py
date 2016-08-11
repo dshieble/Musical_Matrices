@@ -17,7 +17,7 @@ import time
 
 def main(saved_weights_path, num, primer_path):
     train, generate = rnn_rbm.build_rnnrbm()
-    x, sample, cost, params, size_bt = train()
+    x, sample, cost, monitor, params, size_bt = train()
     W, bh, bv, x, a, Wuh, Wuv, Wvu, Wuu, bu, u0 = params
 
     saver = tf.train.Saver()

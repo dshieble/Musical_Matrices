@@ -18,9 +18,9 @@ import time
 #clip gradients
 #don't compute gradients on sample
 
-def main(num_epochs, path, epochs_to_save=5, num_songs=100000):
+def main(num_epochs, path, epochs_to_save=5, num_songs=10000):
     train, generate = rnn_rbm.build_rnnrbm()
-    x, sample, cost, params, size_bt = train()
+    x, sample, cost, monitor, params, size_bt = train()
     W, bh, bv, x, a, Wuh, Wuv, Wvu, Wuu, bu, u0 = params
 
     tf.scalar_summary("cost", cost) 
@@ -37,7 +37,7 @@ def main(num_epochs, path, epochs_to_save=5, num_songs=100000):
     # optimizer = tf.train.AdamOptimizer(learning_rate=a)
     optimizer = tf.train.GradientDescentOptimizer(learning_rate=a)
     gvs = optimizer.compute_gradients(cost, [W, Wuh, Wuv, Wvu, Wuu, bh, bv, bu, u0])
-    gvs = [(tf.clip_by_value(grad, -10., 10.), var) for grad, var in gvs]
+    gvs = [(tf.clip_by_value(grad, -50., 50.), var) for grad, var in gvs]
     train_var = optimizer.apply_gradients(gvs)
     saver = tf.train.Saver()
 
@@ -66,19 +66,24 @@ def main(num_epochs, path, epochs_to_save=5, num_songs=100000):
         print "starting"
         for epoch in range(num_epochs):
             costs = []
+            monitors = []
             start = time.time()
             for s_ind, song in enumerate(songs):
-                for i in range(1, len(song), batch_size):
+                for i in range(1, len(song), batch_size/2):
 #                     print s_ind, i
                     tr_x = song[i:i + batch_size]
-                    alpha = min(0.005, 0.05/float(i))
+                    alpha = min(0.01, 0.1/float(i))
     #                 print "iteration: {}, shape: {}".format(i, tr_x.shape)
-                    summary, _, C = sess.run([merged, train_var, cost], feed_dict={x: tr_x, a: alpha})
+                    summary, _, C, M = sess.run([merged, train_var, cost, monitor], feed_dict={x: tr_x, a: alpha})
                     writer.add_summary(summary, i)
                     costs.append(C)
+                    if not np.isnan(M) and not np.isinf(M):
+                        monitors.append(M)
                 if (s_ind % 100) == 0:
-                    print "song: {} cost: {} time: {}".format(s_ind, np.mean(costs), time.time()-start)
-            print "epoch: {} cost: {} time: {}".format(epoch, np.mean(costs), time.time()-start)
+                    print "song: {} cost: {} monitor: {} time: {}".format(s_ind, np.mean(costs), 
+                                                                          np.mean(monitors), time.time()-start)
+            print "epoch: {} cost: {} monitor: {} time: {}".format(epoch, np.mean(costs), 
+                                                                   np.mean(monitors), time.time()-start)
             print
             if (epoch + 1) % epochs_to_save == 0:
                 save_path = saver.save(sess, "saved_data/rbm_rnn_epoch_{}".format(epoch))
