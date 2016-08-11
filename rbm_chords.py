@@ -1,9 +1,10 @@
-import tensorflow as tf
-from tensorflow.python.ops import control_flow_ops
 import numpy as np
 import pandas as pd
-from tqdm import tqdm
 import msgpack
+import glob
+import tensorflow as tf
+from tensorflow.python.ops import control_flow_ops
+from tqdm import tqdm
 
 ###################################################
 # In order for this code to work, you need to place this file in the same 
@@ -12,18 +13,19 @@ import msgpack
 import midi_manipulation
 
 def get_songs(path):
-    files = glob.glob('{}/*.mid'.format(path))[path]
+    files = glob.glob('{}/*.mid*'.format(path))
     songs = []
     for f in tqdm(files):
         try:
-            song = np.array(midi_manipulation.midiToNoteStateMatrix(path))
+            song = np.array(midi_manipulation.midiToNoteStateMatrix(f))
             if np.array(song).shape[0] > 50:
                 songs.append(song)
         except Exception as e:
-            continue           
+            raise e           
     return songs
 
 songs = get_songs('Pop_Music_Midi') #These songs have already been converted from midi to msgpack
+print "{} songs processed".format(len(songs))
 ###################################################
 
 ### HyperParameters
@@ -35,9 +37,9 @@ note_range = highest_note-lowest_note #the note range
 
 num_timesteps  = 15 #This is the number of timesteps that we will create at a time
 n_visible      = 2*note_range*num_timesteps #This is the size of the visible layer. 
-n_hidden       = 200 #This is the size of the hidden layer
+n_hidden       = 20 #This is the size of the hidden layer
 
-num_epochs = 500 #The number of training epochs that we are going to run. For each epoch we go through the entire data set.
+num_epochs = 100 #The number of training epochs that we are going to run. For each epoch we go through the entire data set.
 batch_size = 100 #The number of training examples that we are going to send through the RBM at a time. 
 lr         = tf.constant(0.005, tf.float32) #The learning rate of our model
 
